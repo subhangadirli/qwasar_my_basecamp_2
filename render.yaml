@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: my-basecamp-2
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run frontend:build
+    startCommand: npm start
+    # Persistent disk so the SQLite DB and uploaded files survive restarts/deploys.
+    disk:
+      name: basecamp-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      # Single-deploy setup: the API serves the built SPA from the same origin,
+      # so CLIENT_ORIGIN can be left as the deployed URL (or omitted to use same-origin).
+      - key: CLIENT_ORIGIN
+        sync: false
