@@ -1,8 +1,5 @@
 # MyBasecamp2 - Backend + Frontend
 
-## Live Demo
-
-🔗 **Hosted app:** https://my-basecamp-2.onrender.com _(replace with your deployed URL after the first deploy — see [Deployment](#deployment))_
 
 ## Task
 
@@ -26,6 +23,7 @@ Use Node.js and npm, then run installation from the repository root. Root instal
 ```bash
 npm install
 npm run seed
+pm run dev:all
 ```
 
 Default admin credentials:
@@ -193,7 +191,7 @@ Any host with a persistent volume (Railway, Fly.io, a VPS) works the same way �
 - License: `AGPL-3.0-only` (`LICENSE` file)
 
 ## The Core Team
-salmanli_n
+
 gadirli_s
 
 <span><i>Made at <a href='https://qwasar.io'>Qwasar SV -- Software Engineering School</a></i></span>
