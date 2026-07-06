@@ -11,6 +11,7 @@
     "frontend:preview": "npm --prefix frontend run preview",
     "dev:all": "sh -c 'npm start & npm --prefix frontend run dev'",
     "postinstall": "npm --prefix frontend install",
+    "heroku-postbuild": "npm run frontend:build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "node seed.js"
   },
@@ -18,6 +19,9 @@
   "author": "",
   "license": "AGPL-3.0-only",
   "type": "commonjs",
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
