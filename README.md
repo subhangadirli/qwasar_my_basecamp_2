@@ -1,5 +1,6 @@
 # MyBasecamp2 - Backend + Frontend
 
+**Live Demo:** [https://qwasar-my-basecamp-2-19fdd4dadd2c.herokuapp.com/](https://qwasar-my-basecamp-2-19fdd4dadd2c.herokuapp.com/)
 
 ## Task
 
@@ -155,6 +156,18 @@ PUT /api/projects/:id
 ## Deployment
 
 The app is built as a **single deploy**: in production the Express server serves the built React SPA from `frontend/dist`, so the API and UI share one origin/URL.
+
+### Deploy to Heroku (live demo)
+
+1. Push this repository to GitHub.
+2. In [Heroku](https://heroku.com), create a new app and connect it to the GitHub repo (Deploy tab → GitHub → connect → select branch).
+3. Set Config Vars (Settings tab):
+   - `NODE_ENV=production`
+   - `NPM_CONFIG_PRODUCTION=false` (forces `vite`, a devDependency, to install so the frontend build works)
+   - `SESSION_SECRET=<random string>`
+   - `VITE_API_BASE_URL=/api`
+4. Deploy the branch. Heroku runs `npm install` (triggers `postinstall`), then the `heroku-postbuild` script (`npm run frontend:build`), then starts via the `Procfile` (`web: npm start`).
+5. Data (SQLite DB + uploads) lives on Heroku's ephemeral filesystem and resets on dyno restart/redeploy; the app recreates `data/` and its tables automatically on boot.
 
 ### Deploy to Render (using `render.yaml`)
 
