@@ -5,16 +5,19 @@ services:
     plan: free
     buildCommand: npm install && npm run frontend:build
     startCommand: npm start
-    # Persistent disk so the SQLite DB and uploaded files survive restarts/deploys.
-    disk:
-      name: basecamp-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+    # NOTE: Render's free plan has NO persistent disk. The SQLite DB and uploaded
+    # files live on ephemeral storage and reset on every restart/redeploy.
+    # The app recreates data/ and its tables automatically on boot, so it still runs.
+    # To keep data permanently, upgrade to a paid plan and re-add a `disk:` block here.
     envVars:
       - key: NODE_ENV
         value: production
       - key: SESSION_SECRET
         generateValue: true
+      # Frontend is served same-origin by Express in production, so the SPA
+      # must call the API with a relative path. This is a build-time var.
+      - key: VITE_API_BASE_URL
+        value: /api
       # Single-deploy setup: the API serves the built SPA from the same origin,
       # so CLIENT_ORIGIN can be left as the deployed URL (or omitted to use same-origin).
       - key: CLIENT_ORIGIN
