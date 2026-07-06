@@ -12,6 +12,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # NODE_ENV=production makes npm skip devDependencies, but vite (needed
+      # to build the frontend) lives there. Force npm to install it anyway.
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
       - key: SESSION_SECRET
         generateValue: true
       # Frontend is served same-origin by Express in production, so the SPA
