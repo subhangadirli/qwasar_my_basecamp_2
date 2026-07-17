@@ -1,15 +1,15 @@
 const User = require('../models/User');
 
 const sessionsController = {
-  signIn(req, res) {
+  async signIn(req, res) {
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    User.findByEmail(email, async (err, user) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+    try {
+      const user = await User.findByEmail(email);
       if (!user) return res.status(401).json({ error: 'Email or password is incorrect' });
 
       const isValid = await User.validatePassword(password, user.password_hash);
@@ -27,7 +27,9 @@ const sessionsController = {
           is_admin: user.is_admin
         }
       });
-    });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
   signOut(req, res) {

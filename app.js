@@ -72,9 +72,18 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Server error' });
 });
 
+const { init } = require('./models');
+
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+init()
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    })
+    .catch((err) => {
+        console.error('Failed to initialize database:', err);
+        process.exit(1);
+    });
 
 module.exports = app;

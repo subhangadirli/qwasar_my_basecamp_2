@@ -1,45 +1,65 @@
-const db = require('../config/database');
+const { DataTypes, Model } = require('sequelize');
 const bcrypt = require('bcrypt');
+const sequelize = require('../config/database');
 
-const User = {
-  getAll(callback) {
-    db.all('SELECT id, username, email, is_admin, created_at FROM users', [], callback);
-  },
+const PUBLIC_ATTRS = ['id', 'username', 'email', 'is_admin', 'created_at'];
 
-  findById(id, callback) {
-    db.get('SELECT id, username, email, is_admin, created_at FROM users WHERE id = ?', [id], callback);
-  },
-
-  findByEmail(email, callback) {
-    db.get('SELECT * FROM users WHERE email = ?', [email], callback);
-  },
-
-  async create(username, email, password, callback) {
-    const password_hash = await bcrypt.hash(password, 10);
-    db.run(
-      'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-      [username, email, password_hash],
-      function(err) {
-        callback(err, { id: this.lastID, username, email });
-      }
-    );
-  },
-
-  destroy(id, callback) {
-    db.run('DELETE FROM users WHERE id = ?', [id], callback);
-  },
-
-  setAdmin(id, callback) {
-    db.run('UPDATE users SET is_admin = 1 WHERE id = ?', [id], callback);
-  },
-
-  removeAdmin(id, callback) {
-    db.run('UPDATE users SET is_admin = 0 WHERE id = ?', [id], callback);
-  },
-
-  async validatePassword(plainPassword, hash) {
-    return await bcrypt.compare(plainPassword, hash);
+class User extends Model {
+  static getAll() {
+    return User.findAll({ attributes: PUBLIC_ATTRS });
   }
-};
+
+  static findPublicById(id) {
+    return User.findByPk(id, { attributes: PUBLIC_ATTRS });
+  }
+
+  static findByEmail(email) {
+    return User.findOne({ where: { email } });
+  }
+
+  static findByUsername(username) {
+    return User.findOne({ where: { username } });
+  }
+
+  static async createUser(username, email, password) {
+    const password_hash = await bcrypt.hash(password, 10);
+    const user = await User.create({ username, email, password_hash });
+    return { id: user.id, username: user.username, email: user.email };
+  }
+
+  static destroyById(id) {
+    return User.destroy({ where: { id } });
+  }
+
+  static setAdmin(id) {
+    return User.update({ is_admin: 1 }, { where: { id } });
+  }
+
+  static removeAdmin(id) {
+    return User.update({ is_admin: 0 }, { where: { id } });
+  }
+
+  static validatePassword(plainPassword, hash) {
+    return bcrypt.compare(plainPassword, hash);
+  }
+}
+
+User.init(
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    username: { type: DataTypes.TEXT, allowNull: false, unique: true },
+    email: { type: DataTypes.TEXT, allowNull: false, unique: true },
+    password_hash: { type: DataTypes.TEXT, allowNull: false },
+    is_admin: { type: DataTypes.INTEGER, defaultValue: 0 }
+  },
+  {
+    sequelize,
+    modelName: 'User',
+    tableName: 'users',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false
+  }
+);
 
 module.exports = User;

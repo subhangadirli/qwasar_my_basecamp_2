@@ -4,37 +4,39 @@ const Attachment = require('../models/Attachment');
 const { uploadsDir, formatOf } = require('../config/upload');
 
 const attachmentsController = {
-  index(req, res) {
-    Attachment.findByProject(req.params.id, (err, attachments) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async index(req, res) {
+    try {
+      const attachments = await Attachment.findByProject(req.params.id);
       res.json(attachments);
-    });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  create(req, res) {
+  async create(req, res) {
     if (!req.file) {
       return res.status(400).json({ error: 'File is required' });
     }
 
-    Attachment.create({
-      project_id: parseInt(req.params.id),
-      uploader_id: req.session.userId,
-      filename: req.file.filename,
-      original_name: req.file.originalname,
-      format: formatOf(req.file.originalname),
-      size: req.file.size
-    }, (err, attachment) => {
-      if (err) {
-        fs.unlink(path.join(uploadsDir, req.file.filename), () => {});
-        return res.status(500).json({ error: 'Server error' });
-      }
+    try {
+      const attachment = await Attachment.createAttachment({
+        project_id: parseInt(req.params.id),
+        uploader_id: req.session.userId,
+        filename: req.file.filename,
+        original_name: req.file.originalname,
+        format: formatOf(req.file.originalname),
+        size: req.file.size
+      });
       res.status(201).json({ message: 'File added', attachment });
-    });
+    } catch (err) {
+      fs.unlink(path.join(uploadsDir, req.file.filename), () => {});
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  download(req, res) {
-    Attachment.findById(req.params.attachmentId, (err, attachment) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async download(req, res) {
+    try {
+      const attachment = await Attachment.findById(req.params.attachmentId);
       if (!attachment || attachment.project_id !== parseInt(req.params.id)) {
         return res.status(404).json({ error: 'File not found' });
       }
@@ -43,21 +45,23 @@ const attachmentsController = {
         return res.status(404).json({ error: 'File not found' });
       }
       res.download(filePath, attachment.original_name);
-    });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  destroy(req, res) {
-    Attachment.findById(req.params.attachmentId, (err, attachment) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async destroy(req, res) {
+    try {
+      const attachment = await Attachment.findById(req.params.attachmentId);
       if (!attachment || attachment.project_id !== parseInt(req.params.id)) {
         return res.status(404).json({ error: 'File not found' });
       }
-      Attachment.destroy(attachment.id, (err) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        fs.unlink(path.join(uploadsDir, attachment.filename), () => {});
-        res.json({ message: 'Fayl silindi' });
-      });
-    });
+      await Attachment.destroyById(attachment.id);
+      fs.unlink(path.join(uploadsDir, attachment.filename), () => {});
+      res.json({ message: 'Fayl silindi' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   }
 };
 
