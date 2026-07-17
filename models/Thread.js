@@ -1,46 +1,64 @@
-const db = require('../config/database');
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../config/database');
+const User = require('./User');
 
-const Thread = {
-  create(project_id, author_id, title, body, callback) {
-    db.run(
-      'INSERT INTO threads (project_id, author_id, title, body) VALUES (?, ?, ?, ?)',
-      [project_id, author_id, title, body],
-      function(err) {
-        callback(err, { id: this.lastID, project_id, author_id, title, body });
-      }
-    );
-  },
+function flattenAuthor(thread) {
+  if (!thread) return thread;
+  const json = thread.toJSON();
+  json.author_name = json.author ? json.author.username : null;
+  delete json.author;
+  return json;
+}
 
-  findByProject(project_id, callback) {
-    db.all(`
-      SELECT threads.*, users.username as author_name
-      FROM threads
-      JOIN users ON threads.author_id = users.id
-      WHERE threads.project_id = ?
-      ORDER BY threads.created_at DESC
-    `, [project_id], callback);
-  },
-
-  findById(id, callback) {
-    db.get(`
-      SELECT threads.*, users.username as author_name
-      FROM threads
-      JOIN users ON threads.author_id = users.id
-      WHERE threads.id = ?
-    `, [id], callback);
-  },
-
-  update(id, title, body, callback) {
-    db.run(
-      'UPDATE threads SET title = ?, body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [title, body, id],
-      callback
-    );
-  },
-
-  destroy(id, callback) {
-    db.run('DELETE FROM threads WHERE id = ?', [id], callback);
-  }
+const withAuthor = {
+  include: [{ model: User, as: 'author', attributes: ['username'] }]
 };
+
+class Thread extends Model {
+  static async createThread(project_id, author_id, title, body) {
+    const thread = await Thread.create({ project_id, author_id, title, body });
+    return { id: thread.id, project_id, author_id, title, body };
+  }
+
+  static async findByProject(project_id) {
+    const threads = await Thread.findAll({
+      where: { project_id },
+      ...withAuthor,
+      order: [['created_at', 'DESC']]
+    });
+    return threads.map(flattenAuthor);
+  }
+
+  static async findByIdWithAuthor(id) {
+    const thread = await Thread.findByPk(id, withAuthor);
+    return flattenAuthor(thread);
+  }
+
+  static updateThread(id, title, body) {
+    return Thread.update({ title, body }, { where: { id } });
+  }
+
+  static destroyById(id) {
+    return Thread.destroy({ where: { id } });
+  }
+}
+
+Thread.init(
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    project_id: { type: DataTypes.INTEGER, allowNull: false },
+    author_id: { type: DataTypes.INTEGER, allowNull: false },
+    title: { type: DataTypes.TEXT, allowNull: false },
+    body: { type: DataTypes.TEXT }
+  },
+  {
+    sequelize,
+    modelName: 'Thread',
+    tableName: 'threads',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
+  }
+);
 
 module.exports = Thread;

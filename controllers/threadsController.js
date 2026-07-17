@@ -2,68 +2,70 @@ const Thread = require('../models/Thread');
 const Message = require('../models/Message');
 
 const threadsController = {
-  index(req, res) {
-    Thread.findByProject(req.params.id, (err, threads) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async index(req, res) {
+    try {
+      const threads = await Thread.findByProject(req.params.id);
       res.json(threads);
-    });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  show(req, res) {
-    Thread.findById(req.params.threadId, (err, thread) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async show(req, res) {
+    try {
+      const thread = await Thread.findByIdWithAuthor(req.params.threadId);
       if (!thread || thread.project_id !== parseInt(req.params.id)) {
         return res.status(404).json({ error: 'Thread not found' });
       }
-      Message.findByThread(thread.id, (err, messages) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        res.json({ ...thread, messages });
-      });
-    });
+      const messages = await Message.findByThread(thread.id);
+      res.json({ ...thread, messages });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  create(req, res) {
+  async create(req, res) {
     const { title, body } = req.body;
     if (!title) {
       return res.status(400).json({ error: 'Thread title is required' });
     }
-    Thread.create(req.params.id, req.session.userId, title, body, (err, thread) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+    try {
+      const thread = await Thread.createThread(req.params.id, req.session.userId, title, body);
       res.status(201).json({ message: 'Thread created', thread });
-    });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  update(req, res) {
+  async update(req, res) {
     const { title, body } = req.body;
     if (!title) {
       return res.status(400).json({ error: 'Thread title is required' });
     }
-    Thread.findById(req.params.threadId, (err, thread) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+    try {
+      const thread = await Thread.findByIdWithAuthor(req.params.threadId);
       if (!thread || thread.project_id !== parseInt(req.params.id)) {
         return res.status(404).json({ error: 'Thread not found' });
       }
-      Thread.update(thread.id, title, body, (err) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        Thread.findById(thread.id, (err, updated) => {
-          if (err) return res.status(500).json({ error: 'Server error' });
-          res.json({ message: 'Thread updated', thread: updated });
-        });
-      });
-    });
+      await Thread.updateThread(thread.id, title, body);
+      const updated = await Thread.findByIdWithAuthor(thread.id);
+      res.json({ message: 'Thread updated', thread: updated });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  destroy(req, res) {
-    Thread.findById(req.params.threadId, (err, thread) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async destroy(req, res) {
+    try {
+      const thread = await Thread.findByIdWithAuthor(req.params.threadId);
       if (!thread || thread.project_id !== parseInt(req.params.id)) {
         return res.status(404).json({ error: 'Thread not found' });
       }
-      Thread.destroy(thread.id, (err) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        res.json({ message: 'Thread deleted' });
-      });
-    });
+      await Thread.destroyById(thread.id);
+      res.json({ message: 'Thread deleted' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   }
 };
 

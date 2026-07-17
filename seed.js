@@ -1,23 +1,28 @@
-const db = require('./config/database');
 const bcrypt = require('bcrypt');
+const { init, User } = require('./models');
 
 async function seed() {
-  const password_hash = await bcrypt.hash('admin123', 10);
+  try {
+    await init();
 
-  db.run(
-    'INSERT OR IGNORE INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
-    ['admin', 'admin@basecamp.com', password_hash, 1],
-    function(err) {
-      if (err) {
-        console.error('Error:', err.message);
-      } else {
-        console.log('Admin user created');
-        console.log('Email: admin@basecamp.com');
-        console.log('Password: admin123');
-      }
-      db.close();
+    const password_hash = await bcrypt.hash('admin123', 10);
+    const [user, created] = await User.findOrCreate({
+      where: { email: 'admin@basecamp.com' },
+      defaults: { username: 'admin', password_hash, is_admin: 1 }
+    });
+
+    if (created) {
+      console.log('Admin user created');
+    } else {
+      console.log('Admin user already exists');
     }
-  );
+    console.log('Email: admin@basecamp.com');
+    console.log('Password: admin123');
+  } catch (err) {
+    console.error('Error:', err.message);
+  } finally {
+    process.exit(0);
+  }
 }
 
 seed();

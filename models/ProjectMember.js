@@ -1,42 +1,60 @@
-const db = require('../config/database');
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../config/database');
+const User = require('./User');
 
-const ProjectMember = {
-  add(project_id, user_id, role, callback) {
-    db.run(
-      'INSERT OR IGNORE INTO project_members (project_id, user_id, role) VALUES (?, ?, ?)',
-      [project_id, user_id, role || 'member'],
-      function(err) {
-        callback(err, { id: this.lastID, project_id, user_id, role: role || 'member' });
-      }
-    );
-  },
-
-  findByProject(project_id, callback) {
-    db.all(`
-      SELECT project_members.id, project_members.user_id, project_members.role,
-             project_members.created_at, users.username, users.email
-      FROM project_members
-      JOIN users ON project_members.user_id = users.id
-      WHERE project_members.project_id = ?
-      ORDER BY project_members.created_at ASC
-    `, [project_id], callback);
-  },
-
-  findRole(project_id, user_id, callback) {
-    db.get(
-      'SELECT role FROM project_members WHERE project_id = ? AND user_id = ?',
-      [project_id, user_id],
-      callback
-    );
-  },
-
-  remove(project_id, user_id, callback) {
-    db.run(
-      'DELETE FROM project_members WHERE project_id = ? AND user_id = ?',
-      [project_id, user_id],
-      callback
-    );
+class ProjectMember extends Model {
+  static async add(project_id, user_id, role) {
+    const [member] = await ProjectMember.findOrCreate({
+      where: { project_id, user_id },
+      defaults: { role: role || 'member' }
+    });
+    return { id: member.id, project_id, user_id, role: member.role };
   }
-};
+
+  static async findByProject(project_id) {
+    const members = await ProjectMember.findAll({
+      where: { project_id },
+      attributes: ['id', 'user_id', 'role', 'created_at'],
+      include: [{ model: User, as: 'user', attributes: ['username', 'email'] }],
+      order: [['created_at', 'ASC']]
+    });
+    return members.map((m) => {
+      const json = m.toJSON();
+      json.username = json.user ? json.user.username : null;
+      json.email = json.user ? json.user.email : null;
+      delete json.user;
+      return json;
+    });
+  }
+
+  static findRole(project_id, user_id) {
+    return ProjectMember.findOne({
+      where: { project_id, user_id },
+      attributes: ['role']
+    });
+  }
+
+  static remove(project_id, user_id) {
+    return ProjectMember.destroy({ where: { project_id, user_id } });
+  }
+}
+
+ProjectMember.init(
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    project_id: { type: DataTypes.INTEGER, allowNull: false },
+    user_id: { type: DataTypes.INTEGER, allowNull: false },
+    role: { type: DataTypes.TEXT, defaultValue: 'member' }
+  },
+  {
+    sequelize,
+    modelName: 'ProjectMember',
+    tableName: 'project_members',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: false,
+    indexes: [{ unique: true, fields: ['project_id', 'user_id'] }]
+  }
+);
 
 module.exports = ProjectMember;

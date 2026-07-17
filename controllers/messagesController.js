@@ -10,57 +10,57 @@ function canModify(req, message) {
 }
 
 const messagesController = {
-  create(req, res) {
+  async create(req, res) {
     const { body } = req.body;
     if (!body || !body.trim()) {
       return res.status(400).json({ error: 'Message cannot be empty' });
     }
-    Thread.findById(req.params.threadId, (err, thread) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+    try {
+      const thread = await Thread.findByIdWithAuthor(req.params.threadId);
       if (!thread || thread.project_id !== parseInt(req.params.id)) {
         return res.status(404).json({ error: 'Thread not found' });
       }
-      Message.create(thread.id, req.session.userId, body, (err, message) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        res.status(201).json({ message: 'Message posted', data: message });
-      });
-    });
+      const message = await Message.createMessage(thread.id, req.session.userId, body);
+      res.status(201).json({ message: 'Message posted', data: message });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  update(req, res) {
+  async update(req, res) {
     const { body } = req.body;
     if (!body || !body.trim()) {
       return res.status(400).json({ error: 'Message cannot be empty' });
     }
-    Message.findById(req.params.messageId, (err, message) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+    try {
+      const message = await Message.findById(req.params.messageId);
       if (!message || message.thread_id !== parseInt(req.params.threadId)) {
         return res.status(404).json({ error: 'Message not found' });
       }
       if (!canModify(req, message)) {
         return res.status(403).json({ error: 'You do not have permission for this action' });
       }
-      Message.update(message.id, body, (err) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        res.json({ message: 'Message updated' });
-      });
-    });
+      await Message.updateMessage(message.id, body);
+      res.json({ message: 'Message updated' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  destroy(req, res) {
-    Message.findById(req.params.messageId, (err, message) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async destroy(req, res) {
+    try {
+      const message = await Message.findById(req.params.messageId);
       if (!message || message.thread_id !== parseInt(req.params.threadId)) {
         return res.status(404).json({ error: 'Message not found' });
       }
       if (!canModify(req, message)) {
         return res.status(403).json({ error: 'You do not have permission for this action' });
       }
-      Message.destroy(message.id, (err) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        res.json({ message: 'Message deleted' });
-      });
-    });
+      await Message.destroyById(message.id);
+      res.json({ message: 'Message deleted' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   }
 };
 

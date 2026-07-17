@@ -1,41 +1,55 @@
-const db = require('../config/database');
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../config/database');
+const User = require('./User');
 
-const Message = {
-  create(thread_id, author_id, body, callback) {
-    db.run(
-      'INSERT INTO messages (thread_id, author_id, body) VALUES (?, ?, ?)',
-      [thread_id, author_id, body],
-      function(err) {
-        callback(err, { id: this.lastID, thread_id, author_id, body });
-      }
-    );
-  },
-
-  findByThread(thread_id, callback) {
-    db.all(`
-      SELECT messages.*, users.username as author_name
-      FROM messages
-      JOIN users ON messages.author_id = users.id
-      WHERE messages.thread_id = ?
-      ORDER BY messages.created_at ASC
-    `, [thread_id], callback);
-  },
-
-  findById(id, callback) {
-    db.get('SELECT * FROM messages WHERE id = ?', [id], callback);
-  },
-
-  update(id, body, callback) {
-    db.run(
-      'UPDATE messages SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [body, id],
-      callback
-    );
-  },
-
-  destroy(id, callback) {
-    db.run('DELETE FROM messages WHERE id = ?', [id], callback);
+class Message extends Model {
+  static async createMessage(thread_id, author_id, body) {
+    const message = await Message.create({ thread_id, author_id, body });
+    return { id: message.id, thread_id, author_id, body };
   }
-};
+
+  static async findByThread(thread_id) {
+    const messages = await Message.findAll({
+      where: { thread_id },
+      include: [{ model: User, as: 'author', attributes: ['username'] }],
+      order: [['created_at', 'ASC']]
+    });
+    return messages.map((m) => {
+      const json = m.toJSON();
+      json.author_name = json.author ? json.author.username : null;
+      delete json.author;
+      return json;
+    });
+  }
+
+  static findById(id) {
+    return Message.findByPk(id);
+  }
+
+  static updateMessage(id, body) {
+    return Message.update({ body }, { where: { id } });
+  }
+
+  static destroyById(id) {
+    return Message.destroy({ where: { id } });
+  }
+}
+
+Message.init(
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    thread_id: { type: DataTypes.INTEGER, allowNull: false },
+    author_id: { type: DataTypes.INTEGER, allowNull: false },
+    body: { type: DataTypes.TEXT, allowNull: false }
+  },
+  {
+    sequelize,
+    modelName: 'Message',
+    tableName: 'messages',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
+  }
+);
 
 module.exports = Message;

@@ -1,73 +1,74 @@
 const User = require('../models/User');
 
 const usersController = {
-  index(req, res) {
-    User.getAll((err, users) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async index(req, res) {
+    try {
+      const users = await User.getAll();
       res.json(users);
-    });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  show(req, res) {
-    User.findById(req.params.id, (err, user) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async show(req, res) {
+    try {
+      const user = await User.findPublicById(req.params.id);
       if (!user) return res.status(404).json({ error: 'User not found' });
       res.json(user);
-    });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  create(req, res) {
+  async create(req, res) {
     const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    User.create(username, email, password, (err, user) => {
-      if (err) {
-        if (err.message.includes('UNIQUE')) {
-          return res.status(409).json({ error: 'This email or username already exists' });
-        }
-        return res.status(500).json({ error: 'Server error' });
-      }
+    try {
+      const user = await User.createUser(username, email, password);
       res.status(201).json({ message: 'Account created successfully', user });
-    });
+    } catch (err) {
+      if (err.name === 'SequelizeUniqueConstraintError') {
+        return res.status(409).json({ error: 'This email or username already exists' });
+      }
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  destroy(req, res) {
-    User.findById(req.params.id, (err, user) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async destroy(req, res) {
+    try {
+      const user = await User.findPublicById(req.params.id);
       if (!user) return res.status(404).json({ error: 'User not found' });
-
-      User.destroy(req.params.id, (err) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        res.json({ message: 'User deleted' });
-      });
-    });
+      await User.destroyById(req.params.id);
+      res.json({ message: 'User deleted' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  setAdmin(req, res) {
-    User.findById(req.params.id, (err, user) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async setAdmin(req, res) {
+    try {
+      const user = await User.findPublicById(req.params.id);
       if (!user) return res.status(404).json({ error: 'User not found' });
-
-      User.setAdmin(req.params.id, (err) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        res.json({ message: 'Admin privileges granted' });
-      });
-    });
+      await User.setAdmin(req.params.id);
+      res.json({ message: 'Admin privileges granted' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   },
 
-  removeAdmin(req, res) {
-    User.findById(req.params.id, (err, user) => {
-      if (err) return res.status(500).json({ error: 'Server error' });
+  async removeAdmin(req, res) {
+    try {
+      const user = await User.findPublicById(req.params.id);
       if (!user) return res.status(404).json({ error: 'User not found' });
-
-      User.removeAdmin(req.params.id, (err) => {
-        if (err) return res.status(500).json({ error: 'Server error' });
-        res.json({ message: 'Admin privileges revoked' });
-      });
-    });
+      await User.removeAdmin(req.params.id);
+      res.json({ message: 'Admin privileges revoked' });
+    } catch (err) {
+      res.status(500).json({ error: 'Server error' });
+    }
   }
 };
 

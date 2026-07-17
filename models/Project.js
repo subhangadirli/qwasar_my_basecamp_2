@@ -1,48 +1,63 @@
-const db = require('../config/database');
+const { DataTypes, Model } = require('sequelize');
+const sequelize = require('../config/database');
+const User = require('./User');
 
-const Project = {
-  getAll(callback) {
-    db.all(`
-      SELECT projects.*, users.username as owner_name 
-      FROM projects 
-      JOIN users ON projects.owner_id = users.id
-    `, [], callback);
-  },
+function flattenOwner(project) {
+  if (!project) return project;
+  const json = project.toJSON();
+  json.owner_name = json.owner ? json.owner.username : null;
+  delete json.owner;
+  return json;
+}
 
-  findById(id, callback) {
-    db.get(`
-      SELECT projects.*, users.username as owner_name 
-      FROM projects 
-      JOIN users ON projects.owner_id = users.id 
-      WHERE projects.id = ?
-    `, [id], callback);
-  },
-
-  findByOwner(owner_id, callback) {
-    db.all('SELECT * FROM projects WHERE owner_id = ?', [owner_id], callback);
-  },
-
-  create(name, description, owner_id, callback) {
-    db.run(
-      'INSERT INTO projects (name, description, owner_id) VALUES (?, ?, ?)',
-      [name, description, owner_id],
-      function(err) {
-        callback(err, { id: this.lastID, name, description, owner_id });
-      }
-    );
-  },
-
-  update(id, name, description, callback) {
-    db.run(
-      'UPDATE projects SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [name, description, id],
-      callback
-    );
-  },
-
-  destroy(id, callback) {
-    db.run('DELETE FROM projects WHERE id = ?', [id], callback);
-  }
+const withOwner = {
+  include: [{ model: User, as: 'owner', attributes: ['username'] }]
 };
+
+class Project extends Model {
+  static async getAll() {
+    const projects = await Project.findAll(withOwner);
+    return projects.map(flattenOwner);
+  }
+
+  static async findByIdWithOwner(id) {
+    const project = await Project.findByPk(id, withOwner);
+    return flattenOwner(project);
+  }
+
+  static findByOwner(owner_id) {
+    return Project.findAll({ where: { owner_id } });
+  }
+
+  static async createProject(name, description, owner_id) {
+    const project = await Project.create({ name, description, owner_id });
+    return { id: project.id, name: project.name, description: project.description, owner_id };
+  }
+
+  static updateProject(id, name, description) {
+    return Project.update({ name, description }, { where: { id } });
+  }
+
+  static destroyById(id) {
+    return Project.destroy({ where: { id } });
+  }
+}
+
+Project.init(
+  {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    name: { type: DataTypes.TEXT, allowNull: false },
+    description: { type: DataTypes.TEXT },
+    owner_id: { type: DataTypes.INTEGER, allowNull: false }
+  },
+  {
+    sequelize,
+    modelName: 'Project',
+    tableName: 'projects',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
+  }
+);
 
 module.exports = Project;
