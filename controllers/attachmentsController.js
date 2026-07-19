@@ -58,7 +58,7 @@ const attachmentsController = {
       }
       await Attachment.destroyById(attachment.id);
       fs.unlink(path.join(uploadsDir, attachment.filename), () => {});
-      res.json({ message: 'Fayl silindi' });
+      res.json({ message: 'File deleted' });
     } catch (err) {
       res.status(500).json({ error: 'Server error' });
     }

@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const sequelize = require('../config/database');
 const Project = require('../models/Project');
 const ProjectMember = require('../models/ProjectMember');
 const Attachment = require('../models/Attachment');
@@ -60,10 +61,18 @@ const projectsController = {
   async destroy(req, res) {
     try {
       const attachments = await Attachment.findByProject(req.params.id);
+
+      // Delete the project (and cascaded rows) inside a transaction, and only
+      // remove files once it commits. If the DB delete fails it rolls back
+      // cleanly, so we never orphan attachment rows by unlinking their files first.
+      await sequelize.transaction(async (t) => {
+        await Project.destroyById(req.params.id, { transaction: t });
+      });
+
       attachments.forEach((a) => {
         fs.unlink(path.join(uploadsDir, a.filename), () => {});
       });
-      await Project.destroyById(req.params.id);
+
       res.json({ message: 'Project deleted' });
     } catch (err) {
       res.status(500).json({ error: 'Server error' });

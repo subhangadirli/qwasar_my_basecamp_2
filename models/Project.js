@@ -38,8 +38,8 @@ class Project extends Model {
     return Project.update({ name, description }, { where: { id } });
   }
 
-  static destroyById(id) {
-    return Project.destroy({ where: { id } });
+  static destroyById(id, options = {}) {
+    return Project.destroy({ where: { id }, ...options });
   }
 }
 

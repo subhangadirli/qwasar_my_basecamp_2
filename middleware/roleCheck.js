@@ -29,8 +29,28 @@ const isProjectOwner = async (req, res, next) => {
   }
 };
 
-// Admin-level access is currently equivalent to project ownership.
-const isProjectAdmin = isProjectOwner;
+// Project admins are the owner, a global admin, or a member with the 'admin' role.
+const isProjectAdmin = async (req, res, next) => {
+  try {
+    const project = await Project.findByIdWithOwner(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    if (project.owner_id === req.session.userId || req.session.isAdmin) {
+      req.project = project;
+      return next();
+    }
+
+    const member = await ProjectMember.findRole(project.id, req.session.userId);
+    if (member && member.role === 'admin') {
+      req.project = project;
+      return next();
+    }
+
+    return res.status(403).json({ error: 'You do not have permission for this action' });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
 
 const isProjectMember = async (req, res, next) => {
   try {
